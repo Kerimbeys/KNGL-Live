@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KNGL Canlı Yayınlar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .preview-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .preview-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen">
+
+    <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <span class="w-4 h-4 rounded-full bg-red-500 animate-pulse"></span>
+                <h1 class="text-2xl font-black tracking-tight text-white uppercase">
+                    KNGL <span class="text-indigo-500">Live</span>
+                </h1>
+            </div>
+            <div class="text-sm text-gray-400">
+                Aktif Yayıncı: <span id="count" class="text-indigo-400 font-bold">0</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-10">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="streamContainer">
+            </div>
+    </main>
+
+    <script>
+        async function fetchStreams() {
+            try {
+                const response = await fetch('/api/streams');
+                const data = await response.json();
+
+                if (data.success) {
+                    const container = document.getElementById('streamContainer');
+                    const countEl = document.getElementById('count');
+                    countEl.textContent = data.streams.length;
+                    
+                    container.innerHTML = '';
+                    
+                    data.streams.forEach(stream => {
+                        const cardHTML = `
+                            <div class="preview-card bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                                <div class="relative aspect-video bg-gray-950 overflow-hidden">
+                                    <img src="${stream.thumbnail}" alt="${stream.username}" class="w-full h-full object-cover">
+                                    <div class="absolute top-3 left-3 flex items-center space-x-2">
+                                        <span class="bg-red-600 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider text-white">CANLI</span>
+                                        <span class="bg-black/70 backdrop-blur text-[11px] text-gray-300 font-medium px-2.5 py-1 rounded-md">👀 ${stream.viewers}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="p-5">
+                                    <div class="flex items-center space-x-3 mb-4">
+                                        <img src="${stream.avatar}" alt="${stream.username}" class="w-10 h-10 rounded-full border border-indigo-500">
+                                        <div>
+                                            <h3 class="font-bold text-white leading-tight">${stream.username}</h3>
+                                            <p class="text-xs text-indigo-400 font-medium">Kategori: ${stream.category}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <p class="text-sm text-gray-400 line-clamp-2 mb-5">
+                                        ${stream.description}
+                                    </p>
+
+                                    <a href="${stream.url}" target="_blank" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-3 rounded-lg transition-all shadow-lg shadow-indigo-600/20">
+                                        Yayına Git
+                                    </a>
+                                </div>
+                            </div>
+                        `;
+                        container.innerHTML += cardHTML;
+                    });
+                }
+            } catch (error) {
+                console.error("Yayınlar yüklenirken hata oluştu:", error);
+            }
+        }
+
+        // Sayfa yüklendiğinde çalıştır
+        document.addEventListener('DOMContentLoaded', fetchStreams);
+    </script>
+</body>
+</html>
