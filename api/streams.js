@@ -1,40 +1,59 @@
 // api/streams.js
 export default async function handler(req, res) {
-    // CORS izinleri (Gerekirse)
+    // CORS izinleri
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Content-Type', 'application/json');
 
     try {
-        // Gerçek bir senaryoda burada Kick API'sine istek atılır:
-        // const response = await fetch('https://kick.com/api/v2/...)....
-        
-        // Şimdilik örnek (Mock) veri döndürüyoruz:
-        const mockStreams = [
-            {
-                id: "1",
-                username: "KNGL_Ahmet",
-                category: "Just Chatting",
-                viewers: 1250,
-                thumbnail: "https://picsum.photos/800/450?random=1",
-                avatar: "https://i.pravatar.cc/100?img=1",
-                description: "KNGL etiketi ile yepyeni bir yayın! Sohbet ve oyun keyfi burada seni bekliyor.",
-                url: "https://kick.com/kngl_ahmet"
-            },
-            {
-                id: "2",
-                username: "KNGL_Zeynep",
-                category: "Valorant",
-                viewers: 3420,
-                thumbnail: "https://picsum.photos/800/450?random=2",
-                avatar: "https://i.pravatar.cc/100?img=2",
-                description: "KNGL ekibiyle rekabetçi rank kasmace! Kaçırma.",
-                url: "https://kick.com/kngl_zeynep"
+        // Kick API üzerinden canlı yayın verilerini çekiyoruz
+        const response = await fetch('https://kick.com/api/v2/categories', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
             }
-        ];
+        });
 
-        // Başarılı yanıt
-        res.status(200).json({ success: true, streams: mockStreams });
+        if (!response.ok) {
+            throw new Error('Kick API verisi alınamadı.');
+        }
+
+        const data = await response.json();
+
+        // Gelen veriyi işleyip filtreleme yapıyoruz
+        // (Eğer API'niz farklı bir endpoint gerektiriyorsa buradaki yapıyı ona göre esnetebiliriz)
+        const streams = (data || []).map(item => ({
+            id: item.id || Math.random().toString(36),
+            username: item.slug || "KNGL_Kullanici",
+            category: item.category?.name || "Just Chatting",
+            viewers: item.viewers_count || 0,
+            thumbnail: item.thumbnail?.url || "https://picsum.photos/800/450",
+            avatar: item.icon?.url || "https://i.pravatar.cc/100",
+            description: item.session_title || "KNGL Ekibi Canlı Yayında!",
+            url: `https://kick.com/${item.slug || 'kngl'}`
+        })).filter(stream => 
+            stream.description.toLowerCase().includes('kngl') || 
+            stream.username.toLowerCase().includes('kngl')
+        );
+
+        res.status(200).json({ success: true, streams });
     } catch (error) {
-        res.status(500).json({ success: false, message: "Veri çekilemedi" });
+        // Hata durumunda sistemin çökmemesi için alternatif mock veri döndürüyoruz
+        res.status(500).json({ 
+            success: false, 
+            message: "API Hatası, örnek veriler kullanılıyor",
+            streams: [
+                {
+                    id: "1",
+                    username: "KNGL_Ornek",
+                    category: "Just Chatting",
+                    viewers: 1500,
+                    thumbnail: "https://picsum.photos/800/450?random=1",
+                    avatar: "https://i.pravatar.cc/100",
+                    description: "KNGL ekibi yayında!",
+                    url: "https://kick.com/"
+                }
+            ] 
+        });
     }
 }
