@@ -1,10 +1,8 @@
-// api/streams.js
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Content-Type', 'application/json');
 
     try {
-        // Kick API'sinden KNGL etiketli canlı yayınları çekiyoruz
         const response = await fetch('https://kick.com/api/v2/livestreams?tags=KNGL', {
             method: 'GET',
             headers: {
@@ -19,7 +17,6 @@ export default async function handler(req, res) {
 
         const data = await response.json();
 
-        // Gelen JSON verisini arayüzün beklediği formata dönüştürüyoruz
         const streams = (data.data || []).map(item => ({
             id: item.id,
             username: item.user?.username || "KNGL_Yayinci",
@@ -34,7 +31,6 @@ export default async function handler(req, res) {
         res.status(200).json({ success: true, streams });
         
     } catch (error) {
-        // Hata durumlarında sistemin hata vermemesi için örnek bir kart döndürüyoruz
         res.status(200).json({ 
             success: true, 
             streams: [
@@ -45,7 +41,7 @@ export default async function handler(req, res) {
                     viewers: 1250,
                     thumbnail: "https://picsum.photos/800/450?random=1",
                     avatar: "https://i.pravatar.cc/100",
-                    description: "KNGL etiketi ile çalışan örnek yayın!",
+                    description: "KNGL etiketiyle çalışan örnek yayın açıklamasıdır.",
                     url: "https://kick.com"
                 }
             ]
