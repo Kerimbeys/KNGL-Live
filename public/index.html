@@ -6,14 +6,18 @@
     <title>KNGL Canlı Yayınlar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            background-color: #030712;
+        .preview-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .preview-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2);
         }
     </style>
 </head>
-<body class="text-gray-100 font-sans min-h-screen">
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen">
 
-    <header class="border-b border-gray-900 bg-gray-950/80 backdrop-blur-md">
+    <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-md">
         <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 <span class="w-4 h-4 rounded-full bg-red-500 animate-pulse"></span>
@@ -28,15 +32,98 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-6 py-10">
-        <div class="w-full h-[800px] rounded-2xl overflow-hidden border border-gray-900 shadow-2xl bg-gray-900/40">
-            <iframe 
-                src="https://knglrp.com/streamers" 
-                class="w-full h-full border-0 bg-transparent"
-                title="KNGL Streamers"
-                sandbox="allow-scripts allow-same-origin">
-            </iframe>
-        </div>
+        <div id="status-message" class="hidden mb-6 p-4 rounded-xl border border-indigo-500/20 bg-indigo-950/30 text-indigo-400 text-sm"></div>
+
+        <div id="streams-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            </div>
     </main>
 
+    <script>
+        async function fetchStreams() {
+            const container = document.getElementById('streams-container');
+            const statusMessage = document.getElementById('status-message');
+            
+            // Yükleniyor göstergesi
+            container.innerHTML = `
+                <div class="col-span-full text-center py-20 text-gray-400">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-r-transparent align-middle mr-2"></div>
+                    Yayınlar yükleniyor...
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/streams');
+                const data = await response.json();
+
+                container.innerHTML = ''; // Yükleniyor yazısını temizle
+
+                // Mesaj varsa göster
+                if (data.message) {
+                    statusMessage.textContent = data.message;
+                    statusMessage.classList.remove('hidden');
+                } else {
+                    statusMessage.classList.add('hidden');
+                }
+
+                // Dönen diziyi kontrol et
+                if (data.streams && data.streams.length > 0) {
+                    data.streams.forEach(stream => {
+                        const cardHTML = `
+                            <div class="preview-card bg-gray-900/60 border border-gray-800 rounded-2xl overflow-hidden backdrop-blur-sm">
+                                <div class="relative aspect-video w-full overflow-hidden bg-gray-950">
+                                    <img src="${stream.thumbnail}" alt="${stream.username}" class="w-full h-full object-cover">
+                                    <div class="absolute top-3 left-3 flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-xs font-semibold text-red-500 border border-red-500/20">
+                                        <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                                        <span>CANLI</span>
+                                    </div>
+                                    <div class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-md text-xs font-medium text-gray-300">
+                                        👁️ ${stream.viewers} İzleyici
+                                    </div>
+                                </div>
+                                
+                                <div class="p-5">
+                                    <div class="flex items-center space-x-3 mb-4">
+                                        <img src="${stream.avatar}" alt="${stream.username}" class="w-10 h-10 rounded-full border border-indigo-500">
+                                        <div>
+                                            <h3 class="font-bold text-white leading-tight">${stream.username}</h3>
+                                            <p class="text-xs text-indigo-400 font-medium">Kategori: ${stream.category}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <p class="text-sm text-gray-400 line-clamp-2 mb-5">
+                                        ${stream.description}
+                                    </p>
+
+                                    <a href="${stream.url}" target="_blank" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-3 rounded-lg transition-all shadow-lg shadow-indigo-600/20">
+                                        Yayına Git
+                                    </a>
+                                </div>
+                            </div>
+                        `;
+                        container.innerHTML += cardHTML;
+                    });
+                } else {
+                    container.innerHTML = `
+                        <div class="col-span-full text-center py-20 bg-gray-900/40 rounded-2xl border border-gray-800">
+                            <p class="text-gray-400 font-medium text-lg">Aktif yayın bulunamadı.</p>
+                            <p class="text-gray-500 text-sm mt-1">Daha sonra tekrar kontrol edebilirsiniz.</p>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                console.error("Yayınlar yüklenirken hata oluştu:", error);
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-20 bg-gray-900/40 rounded-2xl border border-gray-800">
+                        <p class="text-red-400 font-medium text-lg">Yayınlar yüklenirken bir hata oluştu.</p>
+                        <p class="text-gray-500 text-sm mt-1">Lütfen sayfayı yenileyin veya daha sonra tekrar deneyin.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Sayfa yüklendiğinde çalıştır
+        document.addEventListener('DOMContentLoaded', fetchStreams);
+    </script>
 </body>
 </html>
