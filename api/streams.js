@@ -39,11 +39,14 @@ export default async function handler(req, res) {
         }
 
         const rawData = await response.json();
-        
-        // allorigins.win içeriği farklı bir yapıya sahip olabilir, kontrol ediyoruz
         let contents = rawData.contents || rawData;
-        const data = typeof contents === 'string' ? JSON.parse(contents) : contents;
 
+        // Eğer dönen veri HTML ise (engellendiysek) hata fırlat
+        if (typeof contents === 'string' && (contents.trim().startsWith('<!DOCTYPE') || contents.trim().startsWith('<html'))) {
+            throw new Error('Kick API erişimi engellendi veya sunucu hata sayfasına yönlendirdi.');
+        }
+
+        const data = typeof contents === 'string' ? JSON.parse(contents) : contents;
         const items = data.data || data;
 
         if (!items || items.length === 0) {
