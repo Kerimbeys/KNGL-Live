@@ -3,30 +3,23 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
 
     const controller = new AbortController();
-    // Vercel timeout sınırına yaklaşmadan önceki süreyi 9.5 saniyeye çıkarıyoruz
-    const timeoutId = setTimeout(() => controller.abort(), 9500); 
+    // Zaman aşımı süresini 3 saniyeye düşürerek uzun süre beklemeyi önlüyoruz
+    const timeoutId = setTimeout(() => controller.abort(), 3000); 
 
     try {
         const targetUrl = 'https://kick.com/api/v2/livestreams?tags=KNGL';
         
         const proxies = [
-            {
-                url: `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
-                type: 'allorigins'
-            },
-            {
-                url: `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-                type: 'corsproxy'
-            }
+            `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
+            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
         ];
 
-        let response;
-        let success = false;
-        let usedProxyType = '';
+        let response = null;
 
-        for (let p of proxies) {
+        // Proxy servislerini sırayla hızlıca dene
+        for (let proxyUrl of proxies) {
             try {
-                response = await fetch(p.url, {
+                response = await fetch(proxyUrl, {
                     method: 'GET',
                     signal: controller.signal,
                     headers: {
@@ -36,32 +29,29 @@ export default async function handler(req, res) {
                 });
 
                 if (response.ok) {
-                    success = true;
-                    usedProxyType = p.type;
                     break;
                 }
             } catch (err) {
-                console.error(`${p.type} isteği sırasında hata oluştu:`, err);
+                continue; // Hata alan proxy'yi atla, diğerine geç
             }
         }
 
         clearTimeout(timeoutId);
 
-        if (!success || !response) {
-            throw new Error('Tüm proxy servisleri zaman aşımına uğradı veya başarısız oldu.');
+        if (!response || !response.ok) {
+            // Hiçbir proxy yanıt vermezse hata fırlatmak yerine boş liste dön
+            return res.status(200).json({
+                success: false,
+                message: "Proxy servisleri yanıt vermedi, sistem aktif.",
+                streams: []
+            });
         }
 
         const rawData = await response.json();
-        let contents;
-        
-        if (usedProxyType === 'allorigins') {
-            contents = rawData.contents;
-        } else {
-            contents = rawData; 
-        }
+        let contents = rawData.contents || rawData;
 
         if (typeof contents === 'string' && (contents.trim().startsWith('<!DOCTYPE') || contents.trim().startsWith('<html'))) {
-            throw new Error('Kick API erişimi engellendi veya sunucu hata sayfasına yönlendirdi.');
+            throw new Error('Erişim engellendi.');
         }
 
         const data = typeof contents === 'string' ? JSON.parse(contents) : contents;
@@ -86,16 +76,16 @@ export default async function handler(req, res) {
             url: `https://kick.com/${item.user?.username || 'kngl'}`
         }));
 
-        res.status(200).json({ success: true, streams });
+        return res.status(200).json({ success: true, streams });
 
     } catch (error) {
         clearTimeout(timeoutId);
-        console.error("API Veri Çekme Hatası:", error);
+        console.error("API Hatası:", error);
 
-        res.status(500).json({
+        // Hata durumunda dahi 500 yerine 200 dönerek arayüzün kilitlenmesini engelliyoruz.
+        return res.status(200).json({
             success: false,
-            message: "Veri çekme işlemi başarısız oldu.",
-            error: error.message,
+            message: "Veri çekme işlemi tamamlanamadı ancak uygulama çalışıyor.",
             streams: []
         });
     }
