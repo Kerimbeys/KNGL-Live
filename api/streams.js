@@ -3,12 +3,12 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 saniye zaman aşımı
+    // Vercel timeout sınırına yaklaşmadan önceki süreyi 9.5 saniyeye çıkarıyoruz
+    const timeoutId = setTimeout(() => controller.abort(), 9500); 
 
     try {
         const targetUrl = 'https://kick.com/api/v2/livestreams?tags=KNGL';
         
-        // Proxy alternatifleri ve tipleri
         const proxies = [
             {
                 url: `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
@@ -24,7 +24,6 @@ export default async function handler(req, res) {
         let success = false;
         let usedProxyType = '';
 
-        // Proxy servislerini sırayla dener
         for (let p of proxies) {
             try {
                 response = await fetch(p.url, {
@@ -53,15 +52,14 @@ export default async function handler(req, res) {
         }
 
         const rawData = await response.json();
-        
         let contents;
+        
         if (usedProxyType === 'allorigins') {
             contents = rawData.contents;
         } else {
-            contents = rawData; // corsproxy.io doğrudan yanıtı döner
+            contents = rawData; 
         }
 
-        // Eğer dönen içerik HTML ise (engellendiysek) hata fırlat
         if (typeof contents === 'string' && (contents.trim().startsWith('<!DOCTYPE') || contents.trim().startsWith('<html'))) {
             throw new Error('Kick API erişimi engellendi veya sunucu hata sayfasına yönlendirdi.');
         }
