@@ -3,32 +3,50 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
 
     try {
-        // Doğrudan Kick API'sine bağlanmayı deniyoruz
         const targetUrl = 'https://kick.com/api/v2/livestreams?tags=KNGL';
         
-        // Alternatif Proxy servisi kullanıyoruz
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+        // Alternatif proxy servisleri
+        const proxies = [
+            `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
+            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+        ];
 
-        const response = await fetch(proxyUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        let response;
+        let success = false;
+
+        // Proxy alternatiflerini sırayla dener
+        for (let i = 0; i < proxies.length; i++) {
+            try {
+                response = await fetch(proxies[i], {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+                    }
+                });
+
+                if (response.ok) {
+                    success = true;
+                    break;
+                }
+            } catch (err) {
+                console.error(`Proxy ${i} hatası:`, err);
             }
-        });
+        }
 
-        if (!response.ok) {
-            throw new Error(`Proxy yanıt vermedi: ${response.status}`);
+        if (!success || !response) {
+            throw new Error('Tüm proxy servisleri başarısız oldu.');
         }
 
         const rawData = await response.json();
-        const data = JSON.parse(rawData.contents);
+        
+        // allorigins.win içeriği farklı bir yapıya sahip olabilir, kontrol ediyoruz
+        let contents = rawData.contents || rawData;
+        const data = typeof contents === 'string' ? JSON.parse(contents) : contents;
 
-        // API'den dönen ana veriyi kontrol ediyoruz
         const items = data.data || data;
 
         if (!items || items.length === 0) {
-            // Hiç yayın bulunamadıysa uyarı mesajı ver
             return res.status(200).json({
                 success: false,
                 message: "KNGL etiketine sahip aktif yayın bulunamadı.",
@@ -52,7 +70,6 @@ export default async function handler(req, res) {
     } catch (error) {
         console.error("API Veri Çekme Hatası:", error);
 
-        // Hata durumunda uygulamanın kilitlenmemesi ve hata detayını göstermesi için
         res.status(500).json({
             success: false,
             message: "Veri çekme işlemi başarısız oldu.",
